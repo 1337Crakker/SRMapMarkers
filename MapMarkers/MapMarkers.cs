@@ -367,16 +367,18 @@ namespace MapMarkers
     /// <summary>
     /// Patch for <c>UIDetector.Update()</c> method that is responsible of checking when the player discovers new treasure pods.
     /// </summary>
-    [HarmonyPatch(typeof(UIDetector))]
-    [HarmonyPatch("Update")]
+    [HarmonyPatch(typeof(UIDetector), "Update")]
     class Patch01
     {
-        static void Postfix(UIDetector instance)
+        static void Postfix(object __instance)
         {
-            // Use a RaycastHit from the main camera to check if the player is looking from close enough at a treasure pod
+            UIDetector instance = __instance as UIDetector;
+            if (instance == null)
+                return;
+
             Vector3 pos = new Vector3((float)Screen.width * 0.5f, (float)Screen.height * 0.5f, 0f);
             RaycastHit raycastHit;
-            Camera mainCamera = Traverse.Create(instance).Field("mainCamera").GetValue() as Camera;
+            Camera mainCamera = Traverse.Create(instance).Field("mainCamera").GetValue<Camera>();
             Physics.Raycast(mainCamera.ScreenPointToRay(pos), out raycastHit, instance.interactDistance);
             TreasurePod treasurePod = null;
             if (raycastHit.collider != null)
@@ -392,17 +394,21 @@ namespace MapMarkers
         }
     }
 
-    [HarmonyPatch(typeof(GordoDisplayOnMap))]
-    [HarmonyPatch("ShowOnMap")]
+    [HarmonyPatch(typeof(GordoDisplayOnMap), "ShowOnMap")]
     class Patch02
     {
-        static void Postfix(GordoDisplayOnMap instance, ref bool result)
+        static void Postfix(object __instance, ref bool __result)
         {
+            var instance = __instance as GordoDisplayOnMap;
+            if (instance == null) return;
+
             if (MapMarkers.ShowGordos)
             {
-                CellDirector parentCellDirector =
-                    Traverse.Create(instance).Method("GetParentCellDirector").GetValue<CellDirector>();
-                result = (!(parentCellDirector != null) || !parentCellDirector.notShownOnMap);
+                CellDirector parentCellDirector = Traverse.Create(instance)
+                    .Method("GetParentCellDirector")
+                    .GetValue<CellDirector>();
+
+                __result = (!(parentCellDirector != null) || !parentCellDirector.notShownOnMap);
             }
         }
     }
