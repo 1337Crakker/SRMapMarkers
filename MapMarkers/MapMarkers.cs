@@ -21,25 +21,25 @@ namespace MapMarkers
         /// <summary>
         /// Flag indicating if all treasure pods should be shown on the map.
         /// </summary>
-        public static bool showAll = false;
+        public static bool ShowAll = false;
         /// <summary>
         /// Flag indicating if already opened treasure pods should be shown on the map (the sprites will be transparent to distinguish them).
         /// </summary>
-        public static bool showOpened = true;
+        public static bool ShowOpened = true;
         /// <summary>
         /// Flag indicating if all Gordos should be shown on the map.
         /// </summary>
-        public static bool showGordos = false;
+        public static bool ShowGordos = false;
 
         /// <summary>
         /// List containing <c>GameObject</c> position of all discovered treasure pods.
         /// </summary>
-        private static List<Vector3> discoveredTreasurePods = new List<Vector3>();
+        private static List<Vector3> _discoveredTreasurePods = new List<Vector3>();
 
         /// <summary>
         /// The asset bundle containing assets needed by the mod.
         /// </summary>
-        private static AssetBundle assetBundle;
+        private static AssetBundle _assetBundle;
 
         /// <summary>
         /// Dictionary mapping an int that represents the type of treasure pods to the sprite to be displayed on the map.
@@ -51,13 +51,13 @@ namespace MapMarkers
         /// <item><term>4</term><description> cosmetic treasure pod (DLC)</description></item>
         /// </list>
         /// </summary>
-        private static readonly Dictionary<int, Sprite> podSprites = new Dictionary<int, Sprite>();
-        public static readonly Dictionary<int, Sprite> openPodSprites = new Dictionary<int, Sprite>();
+        private static readonly Dictionary<int, Sprite> PodSprites = new Dictionary<int, Sprite>();
+        public static readonly Dictionary<int, Sprite> OpenPodSprites = new Dictionary<int, Sprite>();
 
         /// <summary>
         /// Flag used to prevent calling every frame methods to check the treasure pod that the player is looking at.
         /// </summary>
-        private static bool onCooldown = false;
+        private static bool _onCooldown = false;
 
 
         // Called before GameContext.Awake
@@ -74,44 +74,44 @@ namespace MapMarkers
             Console.RegisterCommand(new ShowAllGordosCommand());
 
             // Load mod asset bundle
-            assetBundle = AssetBundle.LoadFromStream(Assembly.GetExecutingAssembly().GetManifestResourceStream(typeof(MapMarkers), "Resources.mapmarkers.assets"));
+            _assetBundle = AssetBundle.LoadFromStream(Assembly.GetExecutingAssembly().GetManifestResourceStream(typeof(MapMarkers), "Resources.mapmarkers.assets"));
 
             // Attach event handler to SRML custom world data load
             SaveRegistry.RegisterWorldDataLoadDelegate((compoundDataPiece) => {
                 // If the custom world data has previously set flags, use them
                 if (compoundDataPiece.HasPiece("showAllTreasuresOnMap"))
                 {
-                    showAll = compoundDataPiece.GetValue<bool>("showAllTreasuresOnMap");
+                    ShowAll = compoundDataPiece.GetValue<bool>("showAllTreasuresOnMap");
                 }
-                else showAll = false;
+                else ShowAll = false;
                 if (compoundDataPiece.HasPiece("showOpenedTreasuresOnMap"))
                 {
-                    showOpened = compoundDataPiece.GetValue<bool>("showOpenedTreasuresOnMap");
+                    ShowOpened = compoundDataPiece.GetValue<bool>("showOpenedTreasuresOnMap");
                 }
-                else showOpened = true;
+                else ShowOpened = true;
                 if (compoundDataPiece.HasPiece("showAllGordosOnMap"))
                 {
-                    showGordos = compoundDataPiece.GetValue<bool>("showAllGordosOnMap");
+                    ShowGordos = compoundDataPiece.GetValue<bool>("showAllGordosOnMap");
                 }
-                else showGordos = false;
+                else ShowGordos = false;
 
-                discoveredTreasurePods.Clear();
+                _discoveredTreasurePods.Clear();
                 // If the custom world data has discovered treasure pods locations saved, load them
                 if (compoundDataPiece.HasPiece("discoveredTreasurePods"))
                 {
-                    discoveredTreasurePods = new List<Vector3>(compoundDataPiece.GetValue<Vector3[]>("discoveredTreasurePods"));
+                    _discoveredTreasurePods = new List<Vector3>(compoundDataPiece.GetValue<Vector3[]>("discoveredTreasurePods"));
                 }
             });
 
             // Attach event handler to SRML custom world data save
             SaveRegistry.RegisterWorldDataSaveDelegate((compoundDataPiece) => {
                 // Save the current status of flags
-                compoundDataPiece.SetValue("showAllTreasuresOnMap", showAll);
-                compoundDataPiece.SetValue("showOpenedTreasuresOnMap", showOpened);
-                compoundDataPiece.SetValue("showAllGordosOnMap", showGordos);
+                compoundDataPiece.SetValue("showAllTreasuresOnMap", ShowAll);
+                compoundDataPiece.SetValue("showOpenedTreasuresOnMap", ShowOpened);
+                compoundDataPiece.SetValue("showAllGordosOnMap", ShowGordos);
 
                 // Save the discovered treasure pods locations
-                compoundDataPiece.SetValue("discoveredTreasurePods", discoveredTreasurePods.ToArray());
+                compoundDataPiece.SetValue("discoveredTreasurePods", _discoveredTreasurePods.ToArray());
             });
 
             // Attach event handler to save game loaded
@@ -120,11 +120,11 @@ namespace MapMarkers
                 for (int i = 1; i < 5; i++)
                 {
                     // Load treasure pod textures from asset bundle and create sprites
-                    Texture2D podTexture = assetBundle.LoadAsset<Texture2D>("treasurepod" + i + ".png");
-                    podSprites[i] = Sprite.Create(podTexture, new Rect(0, 0, 512, 512), new Vector2(0, 0));
+                    Texture2D podTexture = _assetBundle.LoadAsset<Texture2D>("treasurepod" + i + ".png");
+                    PodSprites[i] = Sprite.Create(podTexture, new Rect(0, 0, 512, 512), new Vector2(0, 0));
 
-                    Texture2D openPodTexture = assetBundle.LoadAsset<Texture2D>("treasurepod" + i + "_open.png");
-                    openPodSprites[i] = Sprite.Create(openPodTexture, new Rect(0, 0, 512, 512), new Vector2(0, 0));
+                    Texture2D openPodTexture = _assetBundle.LoadAsset<Texture2D>("treasurepod" + i + "_open.png");
+                    OpenPodSprites[i] = Sprite.Create(openPodTexture, new Rect(0, 0, 512, 512), new Vector2(0, 0));
                 }
 
                 // Create treasure pod map marker prefabs for every type of treasure pod
@@ -160,10 +160,10 @@ namespace MapMarkers
                     PodDisplayOnMap.AddPodDisplayOnMapComponent(gameObject, podMarkerPrefabs[type]);
 
                     if(gameObject.GetComponent<TreasurePod>().CurrState == TreasurePod.State.OPEN
-                        && !discoveredTreasurePods.Contains(gameObject.transform.position))
+                        && !_discoveredTreasurePods.Contains(gameObject.transform.position))
                     {
                         // If loading the mod for the first time in a save that has already opened treasure pods, add them to the discovered list
-                        discoveredTreasurePods.Add(gameObject.transform.position);
+                        _discoveredTreasurePods.Add(gameObject.transform.position);
                     }
                 }
             };
@@ -196,7 +196,7 @@ namespace MapMarkers
             clone.name = "TreasurePod" + type + "Marker";
 
             // Assing the correct sprite for the given treasure pod type
-            clone.GetComponent<Image>().sprite = podSprites[type];
+            clone.GetComponent<Image>().sprite = PodSprites[type];
             return clone;
         }
 
@@ -210,21 +210,21 @@ namespace MapMarkers
         {
             // Since this method will be called every frame from an Update method,
             // use a short cooldown to prevent making too many unnecessary searches in discoveredTreasurePods
-            if (onCooldown) return;
+            if (_onCooldown) return;
 
-            onCooldown = true;
+            _onCooldown = true;
             Task.Factory.StartNew(() =>
             {
                 // 5 seconds cooldown, it could be even longer since there are no treasure pods that are very close to each other
                 Thread.Sleep(5000);
 
-                onCooldown = false;
+                _onCooldown = false;
             });
 
             if (!IsTreasurePodDiscovered(treasurePod))
             {
                 // If this is a newly found treasure pod, add it to the discovered list
-                discoveredTreasurePods.Add(treasurePod.gameObject.transform.position);
+                _discoveredTreasurePods.Add(treasurePod.gameObject.transform.position);
                 SECTR_AudioSystem.Play(treasurePod.spawnObjCue, treasurePod.gameObject.transform.position, false);
             }
         }
@@ -236,7 +236,7 @@ namespace MapMarkers
         /// <returns><c>true</c> if the treasure pod has already been discovered, <c>false</c> otherwise</returns>
         public static bool IsTreasurePodDiscovered(TreasurePod treasurePod)
         {
-            return discoveredTreasurePods.Contains(treasurePod.gameObject.transform.position);
+            return _discoveredTreasurePods.Contains(treasurePod.gameObject.transform.position);
         }
 
         /// <summary>
@@ -259,7 +259,7 @@ namespace MapMarkers
         /// </summary>
         public static void ResetDiscoveredTreasurePods()
         {
-            discoveredTreasurePods.Clear();
+            _discoveredTreasurePods.Clear();
 
             Dictionary<string, TreasurePodModel> podModels = SceneContext.Instance.GameModel.AllPods();
             foreach (KeyValuePair<string, TreasurePodModel> entry in podModels)
@@ -268,10 +268,10 @@ namespace MapMarkers
                 GameObject gameObject = Traverse.Create(entry.Value).Field("gameObj").GetValue() as GameObject;
 
                 if (gameObject.GetComponent<TreasurePod>().CurrState == TreasurePod.State.OPEN
-                    && !discoveredTreasurePods.Contains(gameObject.transform.position))
+                    && !_discoveredTreasurePods.Contains(gameObject.transform.position))
                 {
                     // Add back all open treasure pods to the discovered list
-                    discoveredTreasurePods.Add(gameObject.transform.position);
+                    _discoveredTreasurePods.Add(gameObject.transform.position);
                 }
             }
         }
@@ -294,7 +294,7 @@ namespace MapMarkers
         // Reference to the TreasurePod component
         public TreasurePod treasurePod;
         // Flag to check when TreasurePod.State changes from LOCKED to OPEN
-        private bool opened = false;
+        private bool _opened = false;
 
         /// <summary>
         /// Adds a new <c>PodDisplayOnMap</c> component to the given <c>GameObject</c>, initializing all required fields.
@@ -314,7 +314,7 @@ namespace MapMarkers
 
         public override void Refresh()
         {
-            if(!opened)
+            if(!_opened)
             {
                 // If treasure pod was locked and now is open, change the sprite of the MapMarker
                 bool nowOpened = treasurePod.CurrState == TreasurePod.State.OPEN;
@@ -326,8 +326,8 @@ namespace MapMarkers
         {
             if(base.ShowOnMap())
             {
-                if (MapMarkers.showAll) return true;
-                else if (MapMarkers.showOpened) return MapMarkers.IsTreasurePodDiscovered(treasurePod);
+                if (MapMarkers.ShowAll) return true;
+                else if (MapMarkers.ShowOpened) return MapMarkers.IsTreasurePodDiscovered(treasurePod);
                 else {
                     return MapMarkers.IsTreasurePodDiscovered(treasurePod) && treasurePod.CurrState == TreasurePod.State.LOCKED;
                 }
@@ -340,12 +340,12 @@ namespace MapMarkers
         /// </summary>
         private void SetOpened()
         {
-            opened = true;
+            _opened = true;
             Image markerImg = base.GetMarker().gameObject.GetComponent<Image>();
             Color temp = markerImg.color;
             temp.a = 0.7f;
             markerImg.color = temp;
-            markerImg.sprite = MapMarkers.openPodSprites[MapMarkers.GetTreasurePodType(base.gameObject)];
+            markerImg.sprite = MapMarkers.OpenPodSprites[MapMarkers.GetTreasurePodType(base.gameObject)];
         }
     }
 
@@ -356,13 +356,13 @@ namespace MapMarkers
     [HarmonyPatch("Update")]
     class Patch01
     {
-        static void Postfix(UIDetector __instance)
+        static void Postfix(UIDetector instance)
         {
             // Use a RaycastHit from the main camera to check if the player is looking from close enough at a treasure pod
             Vector3 pos = new Vector3((float)Screen.width * 0.5f, (float)Screen.height * 0.5f, 0f);
             RaycastHit raycastHit;
-            Camera mainCamera = Traverse.Create(__instance).Field("mainCamera").GetValue() as Camera;
-            Physics.Raycast(mainCamera.ScreenPointToRay(pos), out raycastHit, __instance.interactDistance);
+            Camera mainCamera = Traverse.Create(instance).Field("mainCamera").GetValue() as Camera;
+            Physics.Raycast(mainCamera.ScreenPointToRay(pos), out raycastHit, instance.interactDistance);
             TreasurePod treasurePod = null;
             if (raycastHit.collider != null)
             {
@@ -381,12 +381,12 @@ namespace MapMarkers
     [HarmonyPatch("ShowOnMap")]
     class Patch02
     {
-        static void Postfix(GordoDisplayOnMap __instance, ref bool __result)
+        static void Postfix(GordoDisplayOnMap instance, ref bool result)
         {
-            if(MapMarkers.showGordos)
+            if(MapMarkers.ShowGordos)
             {
-                CellDirector parentCellDirector = Traverse.Create(__instance).Method("GetParentCellDirector").GetValue<CellDirector>();
-                __result = (!(parentCellDirector != null) || !parentCellDirector.notShownOnMap);
+                CellDirector parentCellDirector = Traverse.Create(instance).Method("GetParentCellDirector").GetValue<CellDirector>();
+                result = (!(parentCellDirector != null) || !parentCellDirector.notShownOnMap);
             }
         }
     }
@@ -401,11 +401,11 @@ namespace MapMarkers
 
         public override bool Execute(string[] args)
         {
-            MapMarkers.showAll = !MapMarkers.showAll;
+            MapMarkers.ShowAll = !MapMarkers.ShowAll;
 
             MapMarkers.ForceRefreshMap();
 
-            if (MapMarkers.showAll) Console.Log("[MapMarkers]: Now showing all treasure pods on the map!");
+            if (MapMarkers.ShowAll) Console.Log("[MapMarkers]: Now showing all treasure pods on the map!");
             else Console.Log("[MapMarkers]: No longer showing all treasure pods on the map!");
             return true;
         }
@@ -421,11 +421,11 @@ namespace MapMarkers
 
         public override bool Execute(string[] args)
         {
-            MapMarkers.showOpened = !MapMarkers.showOpened;
+            MapMarkers.ShowOpened = !MapMarkers.ShowOpened;
 
             MapMarkers.ForceRefreshMap();
 
-            if (MapMarkers.showOpened) Console.Log("[MapMarkers]: Now showing opened treasure pods on the map!");
+            if (MapMarkers.ShowOpened) Console.Log("[MapMarkers]: Now showing opened treasure pods on the map!");
             else Console.Log("[MapMarkers]: No longer showing opened treasure pods on the map!");
             return true;
         }
@@ -460,11 +460,11 @@ namespace MapMarkers
 
         public override bool Execute(string[] args)
         {
-            MapMarkers.showGordos = !MapMarkers.showGordos;
+            MapMarkers.ShowGordos = !MapMarkers.ShowGordos;
 
             MapMarkers.ForceRefreshMap();
 
-            if (MapMarkers.showGordos) Console.Log("[MapMarkers]: Now showing all gordos on the map!");
+            if (MapMarkers.ShowGordos) Console.Log("[MapMarkers]: Now showing all gordos on the map!");
             else Console.Log("[MapMarkers]: No longer showing all gordos on the map!");
             return true;
         }
