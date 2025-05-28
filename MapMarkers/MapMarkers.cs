@@ -33,6 +33,8 @@ namespace MapMarkers
         /// </summary>
         public static bool ShowGordos = false;
 
+        public static bool ShowSlimeGates = false;
+
         /// <summary>
         /// List containing <c>GameObject</c> position of all discovered treasure pods.
         /// </summary>
@@ -74,10 +76,14 @@ namespace MapMarkers
             Console.RegisterCommand(new ShowOpenedCommand());
             Console.RegisterCommand(new ResetDiscoveredCommand());
             Console.RegisterCommand(new ShowAllGordosCommand());
+            Console.RegisterCommand(new ShowAllSlimeGatesCommand());
 
             // Load mod asset bundle
             _assetBundle = AssetBundle.LoadFromStream(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream(typeof(MapMarkers), "Resources.mapmarkers.assets"));
+
+            foreach (var tex in _assetBundle.LoadAllAssets<Texture2D>())
+                Debug.Log($"Found texture: {tex.name}");
 
             // Attach event handler to SRML custom world data load
             SaveRegistry.RegisterWorldDataLoadDelegate((compoundDataPiece) =>
@@ -108,6 +114,11 @@ namespace MapMarkers
                     _discoveredTreasurePods =
                         new List<Vector3>(compoundDataPiece.GetValue<Vector3[]>("discoveredTreasurePods"));
                 }
+
+                if (compoundDataPiece.HasPiece("showAllSlimeGates"))
+                    ShowSlimeGates = compoundDataPiece.GetValue<bool>("showAllSlimeGates");
+                else
+                    ShowSlimeGates = false;
             });
 
             // Attach event handler to SRML custom world data save
@@ -117,6 +128,7 @@ namespace MapMarkers
                 compoundDataPiece.SetValue("showAllTreasuresOnMap", ShowAll);
                 compoundDataPiece.SetValue("showOpenedTreasuresOnMap", ShowOpened);
                 compoundDataPiece.SetValue("showAllGordosOnMap", ShowGordos);
+                compoundDataPiece.SetValue("showAllSlimeGates", ShowSlimeGates);
 
                 // Save the discovered treasure pods locations
                 compoundDataPiece.SetValue("discoveredTreasurePods", _discoveredTreasurePods.ToArray());
@@ -174,7 +186,29 @@ namespace MapMarkers
                         _discoveredTreasurePods.Add(gameObject.transform.position);
                     }
                 }
+
+                SlimeGateActivator[] allGates = GameObject.FindObjectsOfType<SlimeGateActivator>();
+                Texture2D gateTex = _assetBundle.LoadAsset<Texture2D>("slimegate.png");
+                Sprite slimeGateSprite = Sprite.Create(gateTex, new Rect(0, 0, 512, 512), new Vector2(0, 0));
+                GameObject gateMarkerPrefab = CreateGenericMarker("slimegate", slimeGateSprite);
+
+                foreach (SlimeGateActivator gate in allGates)
+                {
+                    SlimeGateDisplayOnMap.AddSlimeGateDisplayOnMap(gate.gateDoor.gameObject,
+                        gateMarkerPrefab.GetComponent<MapMarker>());
+                }
             };
+        }
+
+        private GameObject CreateGenericMarker(string name, Sprite icon)
+        {
+            GameObject baseMarker = GameContext.Instance.LookupDirector.GetGordo(Identifiable.Id.GOLD_GORDO)
+                .GetComponent<GordoDisplayOnMap>().markerPrefab.gameObject;
+
+            GameObject clone = GameObject.Instantiate(baseMarker);
+            clone.name = name + "_Marker";
+            clone.GetComponent<Image>().sprite = icon;
+            return clone;
         }
 
         // Called before GameContext.Start
@@ -294,6 +328,40 @@ namespace MapMarkers
         {
             MapUI mapUI = SRSingleton<Map>.Instance.mapUI;
             if (mapUI.gameObject.activeSelf) Traverse.Create(mapUI).Method("RefreshMap").GetValue();
+        }
+    }
+
+    class SlimeGateDisplayOnMap : DisplayOnMap
+    {
+        private bool _opened = false;
+
+        public override void Refresh()
+        {
+            if (!_opened && GetComponent<AccessDoor>().CurrState == AccessDoor.State.OPEN)
+                SetOpened();
+        }
+
+        private void SetOpened()
+        {
+            _opened = true;
+            var marker = GetMarker().GetComponent<Image>();
+            var color = marker.color;
+            color.a = 0.7f;
+            marker.color = color;
+        }
+
+        public override bool ShowOnMap()
+        {
+            return base.ShowOnMap() && MapMarkers.ShowSlimeGates;
+        }
+
+        public static void AddSlimeGateDisplayOnMap(GameObject obj, MapMarker marker)
+        {
+            obj.SetActive(false);
+            var disp = obj.AddComponent<SlimeGateDisplayOnMap>();
+            disp.markerPrefab = marker;
+            disp.HideInFog = true;
+            obj.SetActive(true);
         }
     }
 
@@ -489,6 +557,22 @@ namespace MapMarkers
 
             if (MapMarkers.ShowGordos) Console.Log("[MapMarkers]: Now showing all gordos on the map!");
             else Console.Log("[MapMarkers]: No longer showing all gordos on the map!");
+            return true;
+        }
+    }
+
+    class ShowAllSlimeGatesCommand : ConsoleCommand
+    {
+        public override string ID => "showallslimegates";
+        public override string Usage => "showallslimegates";
+        public override string Description => "Toggles if all slime gates should be shown on the map";
+
+        public override bool Execute(string[] args)
+        {
+            MapMarkers.ShowSlimeGates = !MapMarkers.ShowSlimeGates;
+            MapMarkers.ForceRefreshMap();
+            Console.Log(
+                $"[MapMarkers]: {(MapMarkers.ShowSlimeGates ? "Now" : "No longer")} showing slime gates on the map!");
             return true;
         }
     }
