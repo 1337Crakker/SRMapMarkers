@@ -22,10 +22,12 @@ namespace MapMarkers
         /// Flag indicating if all treasure pods should be shown on the map.
         /// </summary>
         public static bool ShowAll = false;
+
         /// <summary>
         /// Flag indicating if already opened treasure pods should be shown on the map (the sprites will be transparent to distinguish them).
         /// </summary>
         public static bool ShowOpened = true;
+
         /// <summary>
         /// Flag indicating if all Gordos should be shown on the map.
         /// </summary>
@@ -52,13 +54,13 @@ namespace MapMarkers
         /// </list>
         /// </summary>
         private static readonly Dictionary<int, Sprite> PodSprites = new Dictionary<int, Sprite>();
+
         public static readonly Dictionary<int, Sprite> OpenPodSprites = new Dictionary<int, Sprite>();
 
         /// <summary>
         /// Flag used to prevent calling every frame methods to check the treasure pod that the player is looking at.
         /// </summary>
         private static bool _onCooldown = false;
-
 
         // Called before GameContext.Awake
         // You want to register new things and enum values here, as well as do all your harmony patching
@@ -74,21 +76,25 @@ namespace MapMarkers
             Console.RegisterCommand(new ShowAllGordosCommand());
 
             // Load mod asset bundle
-            _assetBundle = AssetBundle.LoadFromStream(Assembly.GetExecutingAssembly().GetManifestResourceStream(typeof(MapMarkers), "Resources.mapmarkers.assets"));
+            _assetBundle = AssetBundle.LoadFromStream(Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream(typeof(MapMarkers), "Resources.mapmarkers.assets"));
 
             // Attach event handler to SRML custom world data load
-            SaveRegistry.RegisterWorldDataLoadDelegate((compoundDataPiece) => {
+            SaveRegistry.RegisterWorldDataLoadDelegate((compoundDataPiece) =>
+            {
                 // If the custom world data has previously set flags, use them
                 if (compoundDataPiece.HasPiece("showAllTreasuresOnMap"))
                 {
                     ShowAll = compoundDataPiece.GetValue<bool>("showAllTreasuresOnMap");
                 }
                 else ShowAll = false;
+
                 if (compoundDataPiece.HasPiece("showOpenedTreasuresOnMap"))
                 {
                     ShowOpened = compoundDataPiece.GetValue<bool>("showOpenedTreasuresOnMap");
                 }
                 else ShowOpened = true;
+
                 if (compoundDataPiece.HasPiece("showAllGordosOnMap"))
                 {
                     ShowGordos = compoundDataPiece.GetValue<bool>("showAllGordosOnMap");
@@ -99,12 +105,14 @@ namespace MapMarkers
                 // If the custom world data has discovered treasure pods locations saved, load them
                 if (compoundDataPiece.HasPiece("discoveredTreasurePods"))
                 {
-                    _discoveredTreasurePods = new List<Vector3>(compoundDataPiece.GetValue<Vector3[]>("discoveredTreasurePods"));
+                    _discoveredTreasurePods =
+                        new List<Vector3>(compoundDataPiece.GetValue<Vector3[]>("discoveredTreasurePods"));
                 }
             });
 
             // Attach event handler to SRML custom world data save
-            SaveRegistry.RegisterWorldDataSaveDelegate((compoundDataPiece) => {
+            SaveRegistry.RegisterWorldDataSaveDelegate((compoundDataPiece) =>
+            {
                 // Save the current status of flags
                 compoundDataPiece.SetValue("showAllTreasuresOnMap", ShowAll);
                 compoundDataPiece.SetValue("showOpenedTreasuresOnMap", ShowOpened);
@@ -136,10 +144,10 @@ namespace MapMarkers
                 // Load MapMarker component for each prefab into a dictionary
                 Dictionary<int, MapMarker> podMarkerPrefabs = new Dictionary<int, MapMarker>()
                 {
-                    {1, pod1MarkerPrefabObj.GetComponent<MapMarker>()},
-                    {2, pod2MarkerPrefabObj.GetComponent<MapMarker>()},
-                    {3, pod3MarkerPrefabObj.GetComponent<MapMarker>()},
-                    {4, pod4MarkerPrefabObj.GetComponent<MapMarker>()},
+                    { 1, pod1MarkerPrefabObj.GetComponent<MapMarker>() },
+                    { 2, pod2MarkerPrefabObj.GetComponent<MapMarker>() },
+                    { 3, pod3MarkerPrefabObj.GetComponent<MapMarker>() },
+                    { 4, pod4MarkerPrefabObj.GetComponent<MapMarker>() },
                 };
 
                 // Iterate over all existing treasure pods
@@ -149,7 +157,7 @@ namespace MapMarkers
                     // Use Harmony Traverse to access treasure pod GameObject instance
                     GameObject gameObject = Traverse.Create(entry.Value).Field("gameObj").GetValue() as GameObject;
                     int type = GetTreasurePodType(gameObject);
-                    if(type == -1)
+                    if (type == -1)
                     {
                         // If a treasure pod of unknow type is found, log to console
                         Console.LogError(entry.Key + " treasure pod has unkown type");
@@ -159,7 +167,7 @@ namespace MapMarkers
                     // Add a PodDisplayOnMap component to treasure pod GameObject, using the correct prefab to instantiate the map marker
                     PodDisplayOnMap.AddPodDisplayOnMapComponent(gameObject, podMarkerPrefabs[type]);
 
-                    if(gameObject.GetComponent<TreasurePod>().CurrState == TreasurePod.State.OPEN
+                    if (gameObject.GetComponent<TreasurePod>().CurrState == TreasurePod.State.OPEN
                         && !_discoveredTreasurePods.Contains(gameObject.transform.position))
                     {
                         // If loading the mod for the first time in a save that has already opened treasure pods, add them to the discovered list
@@ -169,14 +177,17 @@ namespace MapMarkers
             };
         }
 
-
         // Called before GameContext.Start
         // Used for registering things that require a loaded gamecontext
-        public override void Load() {}
+        public override void Load()
+        {
+        }
 
         // Called after all mods Load's have been called
         // Used for editing existing assets in the game, not a registry step
-        public override void PostLoad() {}
+        public override void PostLoad()
+        {
+        }
 
         /// <summary>
         /// Creates a new <c>GameObject</c> that will be the pod map marker prefab for this type.
@@ -289,10 +300,11 @@ namespace MapMarkers
     /// <summary>
     /// Component to be attached to a treasure pod that should be displayed on the map.
     /// </summary>
-    class PodDisplayOnMap: DisplayOnMap
+    class PodDisplayOnMap : DisplayOnMap
     {
         // Reference to the TreasurePod component
         public TreasurePod treasurePod;
+
         // Flag to check when TreasurePod.State changes from LOCKED to OPEN
         private bool _opened = false;
 
@@ -314,24 +326,27 @@ namespace MapMarkers
 
         public override void Refresh()
         {
-            if(!_opened)
+            if (!_opened)
             {
                 // If treasure pod was locked and now is open, change the sprite of the MapMarker
                 bool nowOpened = treasurePod.CurrState == TreasurePod.State.OPEN;
-                if(nowOpened) SetOpened();
+                if (nowOpened) SetOpened();
             }
         }
 
         public override bool ShowOnMap()
         {
-            if(base.ShowOnMap())
+            if (base.ShowOnMap())
             {
                 if (MapMarkers.ShowAll) return true;
                 else if (MapMarkers.ShowOpened) return MapMarkers.IsTreasurePodDiscovered(treasurePod);
-                else {
-                    return MapMarkers.IsTreasurePodDiscovered(treasurePod) && treasurePod.CurrState == TreasurePod.State.LOCKED;
+                else
+                {
+                    return MapMarkers.IsTreasurePodDiscovered(treasurePod) &&
+                           treasurePod.CurrState == TreasurePod.State.LOCKED;
                 }
             }
+
             return false;
         }
 
@@ -383,9 +398,10 @@ namespace MapMarkers
     {
         static void Postfix(GordoDisplayOnMap instance, ref bool result)
         {
-            if(MapMarkers.ShowGordos)
+            if (MapMarkers.ShowGordos)
             {
-                CellDirector parentCellDirector = Traverse.Create(instance).Method("GetParentCellDirector").GetValue<CellDirector>();
+                CellDirector parentCellDirector =
+                    Traverse.Create(instance).Method("GetParentCellDirector").GetValue<CellDirector>();
                 result = (!(parentCellDirector != null) || !parentCellDirector.notShownOnMap);
             }
         }
@@ -437,7 +453,8 @@ namespace MapMarkers
 
         public override string Usage => "resetdiscoveredtreasures";
 
-        public override string Description => "Resets all locked treasure pods to undiscovered (no longer shows them on map)";
+        public override string Description =>
+            "Resets all locked treasure pods to undiscovered (no longer shows them on map)";
 
         public override bool Execute(string[] args)
         {
